@@ -103,34 +103,27 @@ def extract_question_content(question_data):
     return question_id, content
 
 def verify_content_with_gpt(content_to_verify, cheatsheet_content):
-    """Verify if content is derived from cheatsheets using Azure OpenAI"""
+    """Optimized verification function"""
     headers = {
         "Content-Type": "application/json",
         "api-key": API_KEY
     }
 
+    # Optimize prompt for faster processing
     prompt = f"""
-    Analyze if the following content is fully covered by the provided cheatsheet content.
-    If any part is not covered by the cheatsheets, identify specifically what content is missing.
+    Quick analysis: Is this content covered by the cheatsheet? Only check main concepts.
     
-    Content to verify:
-    {content_to_verify}
+    Content: {content_to_verify[:1000]}  # Limit content length
     
-    Cheatsheet Content:
-    {cheatsheet_content}
+    Cheatsheet: {cheatsheet_content[:2000]}  # Limit cheatsheet length
     
-    Please provide a detailed analysis focusing on:
-    1. Whether all concepts mentioned in the question are covered in the cheatsheets
-    2. Whether any terminology or option used in the code snippets go beyond what's in the cheatsheets
-    
-    
-    Respond with a clear YES if everything is covered, or NO with specific details about what's missing.
+    Answer YES or NO with one brief reason.
     """
 
     payload = {
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.3,
-        "max_tokens": 1000
+        "max_tokens": 150  # Reduced from 1000
     }
 
     try:
@@ -141,30 +134,36 @@ def verify_content_with_gpt(content_to_verify, cheatsheet_content):
         return f"Error in verification: {str(e)}"
 
 def process_questions_file(file_path, cheatsheet_content):
-    """Process a JSON file containing questions and verify content"""
+    """Optimized file processing"""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             questions = json.load(f)
         
-        results = []
         if not isinstance(questions, list):
             questions = [questions]
+        
+        # Process questions in batches
+        batch_size = 5
+        results = []
+        
+        for i in range(0, len(questions), batch_size):
+            batch = questions[i:i + batch_size]
+            batch_results = []
             
-        for question in questions:
-            question_id, content_parts = extract_question_content(question)
+            for question in batch:
+                question_id, content_parts = extract_question_content(question)
+                full_content = "\n".join([f"{title}:\n{text}" for title, text in content_parts])
+                
+                verification_result = verify_content_with_gpt(full_content, cheatsheet_content)
+                batch_results.append({
+                    'question_id': question_id,
+                    'verification_result': verification_result,
+                    'content_analyzed': content_parts
+                })
             
-            # Combine all content parts for verification
-            full_content = "\n\n".join([f"{title}:\n{text}" for title, text in content_parts])
-            
-            # Verify content
-            verification_result = verify_content_with_gpt(full_content, cheatsheet_content)
-            
-            # Store results
-            results.append({
-                'question_id': question_id,
-                'verification_result': verification_result,
-                'content_analyzed': content_parts
-            })
+            results.extend(batch_results)
+            # Show progress
+            st.progress((i + len(batch)) / len(questions))
             
         return results
     
@@ -197,7 +196,7 @@ def main():
                     try:
                         supabase.table('cheatsheets').delete().eq('id', sheet['id']).execute()
                         st.success(f"Deleted {sheet['filename']}")
-                        st.experimental_rerun()
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Error deleting: {str(e)}")
     
