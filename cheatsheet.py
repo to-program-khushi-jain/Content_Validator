@@ -120,9 +120,9 @@ def verify_content_with_gpt(content_to_verify, cheatsheet_content):
     {cheatsheet_content}
     
     Please provide a detailed analysis focusing on:
-    1. Whether all concepts mentioned are covered in the cheatsheets
-    2. Whether any specific examples or code snippets go beyond what's in the cheatsheets
-    3. Whether any explanations contain information not present in the cheatsheets
+    1. Whether all concepts mentioned in the question are covered in the cheatsheets
+    2. Whether any terminology or option used in the code snippets go beyond what's in the cheatsheets
+    
     
     Respond with a clear YES if everything is covered, or NO with specific details about what's missing.
     """
